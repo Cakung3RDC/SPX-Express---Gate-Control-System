@@ -426,12 +426,13 @@
     </div>
 
     <script>
-        const SUPABASE_URL = "https://mkclgcekxlqgsgsugfwy.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rY2xnY2VreGxxZ3Nnc3VnZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MDk2NjQsImV4cCI6MjEwMDM4NTY2NH0.EWHPQo8fbkHzrQzwDnbzCA_ZhO5VCrfEhndHoFaHhmk";
+        // KREDENSIAL SUPABASE PROJECT KAMU
+        const SUPABASE_URL = "https://ykhgxrhakjuyykdcfvwg.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlraGd4cmhha2p1eXlrZGNmdndnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5OTEwMjgsImV4cCI6MjEwNTU2NzAyOH0.NUxtipbPwDwCyJ1N8uPISm0dnPR1YBJFKdopw_DpBA4";
         
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // CONFIG EMAILJS (SUDAH TERISI LENGKAP)
+        // CONFIG EMAILJS
         const EMAILJS_PUBLIC_KEY = "qMEqZkQ2YEoOUyUMO"; 
         const EMAILJS_SERVICE_ID = "service_6xm1ebp";
         const EMAILJS_TEMPLATE_ID = "template_epga2yo";
@@ -643,7 +644,6 @@
         }
 
         function openEditModal(imei) {
-            // HANYA SUPER ADMIN OPS342 YANG BISA EDIT
             let currentUser = sessionStorage.getItem('currentUser');
             if (currentUser !== 'Ops342') {
                 alert('Akses Ditolak! Hanya Ops342 (Super Admin) yang dapat mengubah data master.');
@@ -726,14 +726,12 @@
             return `⏳ ${hours}j ${minutes}m`;
         }
 
-        // FUNGSI CEK OTOMATIS ASET > 12 JAM & KIRIM EMAIL WARNING
         function checkAndTriggerOverdueAlerts() {
             let insideAssets = logActivity.filter(item => item.checkOut === '-');
 
             insideAssets.forEach(item => {
                 let hoursPassed = calculateHoursDifference(item.checkInRaw);
                 
-                // JIKA DURASI >= 12 JAM DAN BELUM PERNAH DIKIRIMKAN EMAIL
                 if (hoursPassed >= 12 && !notifiedImeis.has(item.imei)) {
                     notifiedImeis.add(item.imei);
                     sendWarningEmail(item, calculateRunningDuration(item.checkInRaw));
