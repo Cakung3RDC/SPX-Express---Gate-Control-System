@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPX Express - Gate Control System</title>
+    <!-- SUPABASE JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- EMAILJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #f97316;
+            --primary-dark: #ea580c;
+            --primary-light: #fff7ed;
+            --bg-body: #fff7ed;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #fed7aa;
+            --success: #16a34a;
+            --danger: #dc2626;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; }
+
+        /* LOGIN SCREEN */
+        .login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-card {
+            background: #ffffff; padding: 40px; border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); width: 100%; max-width: 380px;
+            text-align: center; border-top: 8px solid var(--primary-dark);
+        }
+        .login-card h2 { color: var(--primary-dark); font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }
+        .login-card p { color: var(--text-muted); font-size: 13px; margin-bottom: 25px; }
+        .login-field { margin-bottom: 18px; text-align: left; }
+        .login-field label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 5px; }
+        .login-field input {
+            width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 8px;
+            font-size: 14px; outline: none; transition: all 0.2s;
+        }
+        .login-field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(249,115,22,0.2); }
+
+        /* NAVBAR */
+        .navbar {
+            background-color: #ea580c; color: white; padding: 12px 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .navbar-brand { display: flex; align-items: center; gap: 12px; }
+        .brand-logo { background: white; color: #ea580c; padding: 4px 10px; border-radius: 6px; font-weight: 900; font-size: 18px; }
+        .brand-title { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
+        .user-info { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+        .user-badge { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; font-weight: 600; border: 1px solid rgba(255,255,255,0.3); }
+
+        /* LAYOUT MAIN */
+        .main-container { padding: 20px; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+        /* DASHBOARD CARDS */
+        .dashboard-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .dash-card {
+            background: var(--card-bg); padding: 12px 18px; border-radius: 10px;
+            border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(234, 88, 12, 0.05);
+            display: flex; flex-direction: column; justify-content: center;
+            min-width: 140px; flex: 0 0 auto; border-left: 4px solid var(--primary);
+        }
+        .dash-card.total-inside { border-left-color: var(--success); background: #f0fdf4; }
+        .dash-card.total-master { border-left-color: #0284c7; background: #f0f9ff; }
+        .dash-card .title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; white-space: nowrap; }
+        .dash-card .value { font-size: 22px; font-weight: 900; color: var(--text-main); margin-top: 2px; white-space: nowrap; }
+
+        /* TOP WORKSPACE GRID */
+        .top-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+        
+        .panel { 
+            background: var(--card-bg); padding: 18px; border-radius: 12px; 
+            border: 1px solid var(--border); box-shadow: 0 2px 5px rgba(0,0,0,0.03); 
+        }
+        .panel-header { 
+            font-size: 14px; font-weight: 800; color: #c2410c; margin-bottom: 12px; 
+            display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #ffedd5; padding-bottom: 8px; 
+            text-transform: uppercase; white-space: nowrap;
+        }
+
+        /* FORM STYLING */
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 3px; white-space: nowrap; }
+        .form-control { 
+            width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; 
+            font-size: 12px; outline: none; background: #fff;
+        }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(249,115,22,0.15); }
+        
+        .scan-box {
+            width: 100%; padding: 12px; font-size: 15px; font-weight: bold;
+            border: 2px solid var(--primary); border-radius: 8px; background: #fff7ed; text-align: center; color: #ea580c;
+        }
+        .scan-box:focus { background: #ffffff; box-shadow: 0 0 0 3px rgba(249,115,22,0.25); }
+
+        /* BUTTONS */
+        .btn {
+            padding: 8px 14px; border: none; border-radius: 6px; font-size: 12px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; display: inline-flex; 
+            align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg-body); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+        /* TABS & TABLES */
+        .tabs { display: flex; gap: 8px; border-bottom: 2px solid var(--border); margin-bottom: 12px; }
+        .tab-btn {
+            padding: 8px 14px; border: none; background: none; font-size: 12px; font-weight: 800;
+            color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
+            white-space: nowrap;
+        }
+        .tab-btn.active { color: #ea580c; border-bottom-color: #ea580c; }
+
+        .table-responsive { overflow-x: auto; width: 100%; max-height: 580px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+        th { 
+            background: #ffedd5; color: #9a3412; font-weight: 800; text-transform: uppercase; 
+            padding: 10px 12px; text-align: left; position: sticky; top: 0; z-index: 10;
+            border-bottom: 2px solid var(--border); white-space: nowrap;
+        }
+        td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+        tr:hover { background: #fff7ed; }
+
+        /* BADGES */
+        .badge { padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+        .badge-emp { background: #e0f2fe; color: #0369a1; }
+        .badge-gst { background: #fef3c7; color: #b45309; }
+        .badge-inside { background: #dcfce7; color: #15803d; }
+        .badge-out { background: #f1f5f9; color: #64748b; }
+        .badge-warning { background: #fee2e2; color: #b91c1c; font-weight: 900; }
+
+        /* ALERTS & MODAL */
+        .alert { padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 700; margin-top: 10px; display: none; text-align: center; }
+        .alert-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .alert-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+        .modal-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(15, 23, 42, 0.6); display:none; justify-content:center; align-items:center; z-index:10000;
+        }
+        .modal-card { background: white; width: 100%; max-width: 480px; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN LOGIN -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>SPX EXPRESS</h2>
+            <p>Gate Control System Gudang</p>
+            <form onsubmit="handleLogin(event)">
+                <div class="login-field">
+                    <label>Username Operator</label>
+                    <input type="text" id="loginUser" required autofocus placeholder="Masukkan Username">
+                </div>
+                <div class="login-field">
+                    <label>Password</label>
+                    <input type="password" id="loginPass" required placeholder="Masukkan Password">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:12px;">LOGIN KE SISTEM</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCREEN -->
+    <div id="appScreen" style="display: none;">
+        <div class="navbar">
+            <div class="navbar-brand">
+                <div class="brand-logo">SPX</div>
+                <div class="brand-title">Gate Control System Gudang 🌐</div>
+            </div>
+            <div class="user-info">
+                <span class="user-badge" id="currentUserDisplay">🟢 Operator: -</span>
+                <button class="btn btn-outline btn-sm" onclick="handleLogout()" style="color:#ea580c; border:none; background:white;">Logout</button>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <!-- TOP WORKSPACE -->
+            <div class="top-grid">
+                <!-- SCANNER & CSV IMPORT -->
+                <div style="display:flex; flex-direction:column; gap:15px;">
+                    <div class="panel">
+                        <div class="panel-header">🎯 GATE SCANNER INPUT</div>
+                        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Arahkan kursor & tembak Barcode IMEI/SN:</p>
+                        <input type="text" id="scanInput" class="scan-box" placeholder="SCAN BARCODE DI SINI" autofocus onkeydown="handleScan(event)">
+                        <div id="alertBox" class="alert"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">📂 IMPORT / EXPORT DATA</div>
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+                            <div>
+                                <label style="font-size:11px; font-weight:bold; color:var(--text-muted);">Import Master Asset (CSV):</label>
+                                <input type="file" id="csvEmployee" accept=".csv" class="form-control" onchange="importMasterCSV('EMPLOYEE')">
+                            </div>
+                            <button class="btn btn-success" onclick="exportLogCSV()" style="width:100%;">📥 Export Log CSV</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FORM INPUT MASTER & DASHBOARD RINGKAS -->
+                <div style="display:flex; flex-direction:column; gap:15px;">
+                    <div class="panel" style="padding: 12px 18px;">
+                        <div class="panel-header" style="margin-bottom: 8px; border:none; padding:0;">📊 RINGKASAN ASET & GUDANG</div>
+                        <div id="dashboardGrid" class="dashboard-grid"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">👤 REGISTRASI MASTER DATA ASET</div>
+                        <form id="guestForm" onsubmit="handleSaveGuest(event)">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                    <label>ID Personel / NIK</label>
+                                    <input type="text" id="gId" class="form-control" placeholder="Contoh: GST-001" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Kategori (Type)</label>
+                                    <select id="gType" class="form-control" required>
+                                        <option value="EMPLOYEE">EMPLOYEE</option>
+                                        <option value="GUEST">GUEST</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nama Lengkap</label>
+                                    <input type="text" id="gName" class="form-control" placeholder="Nama Personel" required>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                    <label>Perusahaan / Vendor</label>
+                                    <input type="text" id="gCompany" class="form-control" placeholder="PT / Instansi" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Jabatan / Position</label>
+                                    <input type="text" id="gPosition" class="form-control" placeholder="Kurir / Staff" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Asset Type</label>
+                                    <select id="gAssetType" class="form-control" required>
+                                        <option value="SMARTPHONE">SMARTPHONE</option>
+                                        <option value="LAPTOP">LAPTOP</option>
+                                        <option value="TABLET">TABLET</option>
+                                        <option value="SCANNER">SCANNER</option>
+                                        <option value="OTHER">OTHER</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Merk / Model</label>
+                                    <input type="text" id="gMerkModel" class="form-control" placeholder="Thinkpad L14" required>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:10px; align-items:end; margin-top:2px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label>IMEI / Serial Number Asset</label>
+                                    <input type="text" id="gImei" class="form-control" placeholder="Scan/Ketik IMEI atau SN" required>
+                                </div>
+                                <button type="submit" class="btn btn-outline" style="width:100%;">Simpan Master</button>
+                                <button type="button" class="btn btn-primary" onclick="handleSaveGuestAndCheckIn()" style="width:100%;">Simpan & Check-In</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABEL FULL WIDTH -->
+            <div class="panel" style="width: 100%;">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('logTab', this)">📋 Log Activity Total</button>
+                    <button class="tab-btn" onclick="switchTab('insideTab', this)">🟢 Aset Di Dalam Gudang</button>
+                    <button class="tab-btn" id="masterTabBtn" onclick="switchTab('masterTab', this)">🗂️ Data Master Terdaftar</button>
+                </div>
+
+                <!-- LOG TAB -->
+                <div id="logTab" class="tab-content">
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>Nama Lengkap</th>
+                                    <th>Perusahaan</th>
+                                    <th>Position</th>
+                                    <th>Asset Type</th>
+                                    <th>Merk / Model</th>
+                                    <th>IMEI / Serial Number</th>
+                                    <th>Waktu Check In</th>
+                                    <th>Waktu Check Out</th>
+                                    <th>Durasi</th>
+                                    <th>Scanned By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- INSIDE TAB -->
+                <div id="insideTab" class="tab-content" style="display:none;">
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>Nama Lengkap</th>
+                                    <th>Perusahaan</th>
+                                    <th>Asset Type</th>
+                                    <th>Merk / Model</th>
+                                    <th>IMEI / Serial Number</th>
+                                    <th>Waktu Masuk</th>
+                                    <th>Durasi Berjalan</th>
+                                    <th>Scanned By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="insideBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MASTER DATA TAB -->
+                <div id="masterTab" class="tab-content" style="display:none;">
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Category</th>
+                                    <th>Nama Lengkap</th>
+                                    <th>Company</th>
+                                    <th>Position</th>
+                                    <th>Asset Type</th>
+                                    <th>Merk / Model</th>
+                                    <th>IMEI / Serial Number</th>
+                                    <th style="text-align:center;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="masterBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT MASTER -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="panel-header" style="justify-content:space-between;">
+                <span>✏️ Edit Master Data Asset</span>
+                <span style="cursor:pointer;" onclick="closeEditModal()">✖</span>
+            </div>
+            <form onsubmit="handleSaveEditMaster(event)">
+                <input type="hidden" id="editOriginalImei">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                        <label>ID Karyawan / Guest</label>
+                        <input type="text" id="editId" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Kategori (Type)</label>
+                        <select id="editType" class="form-control" required>
+                            <option value="EMPLOYEE">EMPLOYEE</option>
+                            <option value="GUEST">GUEST</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" id="editName" class="form-control" required>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                        <label>Perusahaan / Company</label>
+                        <input type="text" id="editCompany" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Jabatan / Position</label>
+                        <input type="text" id="editPosition" class="form-control" required>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                        <label>Asset Type</label>
+                        <select id="editAssetType" class="form-control" required>
+                            <option value="SMARTPHONE">SMARTPHONE</option>
+                            <option value="LAPTOP">LAPTOP</option>
+                            <option value="TABLET">TABLET</option>
+                            <option value="SCANNER">SCANNER</option>
+                            <option value="OTHER">OTHER</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Merk / Model</label>
+                        <input type="text" id="editMerkModel" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>IMEI / Serial Number</label>
+                    <input type="text" id="editImei" class="form-control" required>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:15px;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="closeEditModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://mkclgcekxlqgsgsugfwy.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rY2xnY2VreGxxZ3Nnc3VnZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MDk2NjQsImV4cCI6MjEwMDM4NTY2NH0.EWHPQo8fbkHzrQzwDnbzCA_ZhO5VCrfEhndHoFaHhmk";
+        
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // CONFIG EMAILJS (SUDAH TERISI LENGKAP)
+        const EMAILJS_PUBLIC_KEY = "qMEqZkQ2YEoOUyUMO"; 
+        const EMAILJS_SERVICE_ID = "service_6xm1ebp";
+        const EMAILJS_TEMPLATE_ID = "template_epga2yo";
+
+        if (typeof emailjs !== 'undefined') {
+            emailjs.init(EMAILJS_PUBLIC_KEY);
+        }
+
+        const TARGET_EMAILS = ["moh.salim@spx-external.com", "rifaa.helanda@spxexpress.com"];
+
+        const VALID_USERS = {
+            'Ops342': '@Cakung3',
+            'security': '000000'
+        };
+
+        let masterData = [];
+        let logActivity = [];
+        let notifiedImeis = new Set(); // Mencegah spam email untuk barang/IMEI yang sama
+
+        window.onload = function() {
+            let activeUser = sessionStorage.getItem('currentUser');
+            if (sessionStorage.getItem('isLoggedIn') === 'true' && activeUser) {
+                showAppScreen(activeUser);
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('appScreen').style.display = 'none';
+            }
+        };
+
+        function handleLogin(e) {
+            e.preventDefault();
+            let u = document.getElementById('loginUser').value.trim();
+            let p = document.getElementById('loginPass').value.trim();
+
+            if (VALID_USERS[u] && VALID_USERS[u] === p) {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('currentUser', u);
+                showAppScreen(u);
+            } else {
+                alert('Username atau Password Salah!');
+            }
+        }
+
+        function handleLogout() {
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('currentUser');
+            location.reload();
+        }
+
+        async function showAppScreen(username) {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+            document.getElementById('currentUserDisplay').innerText = `🟢 Operator: ${username}`;
+
+            // KONTROL AKSES: JIKA USER SECURITY, SEMBUNYIKAN TAB MASTER DATA
+            let masterTabBtn = document.getElementById('masterTabBtn');
+            if (username.toLowerCase() === 'security') {
+                masterTabBtn.style.display = 'none';
+            } else {
+                masterTabBtn.style.display = 'inline-block';
+            }
+            
+            await fetchAllDataFromSupabase();
+            listenRealtimeChanges();
+            focusScanner();
+        }
+
+        async function fetchAllDataFromSupabase() {
+            let resMaster = await db.from('master_data').select('*');
+            if(resMaster.data) {
+                masterData = resMaster.data.map(m => ({
+                    id: m.id, type: m.type, name: m.name, company: m.company,
+                    position: m.position, assetType: m.asset_type, merkModel: m.merk_model, imei: m.imei
+                }));
+            }
+
+            let resLog = await db.from('log_activity').select('*').order('id_log', { ascending: false });
+            if(resLog.data) {
+                logActivity = resLog.data.map(l => ({
+                    id_log: l.id_log, id: l.id, type: l.type, name: l.name, company: l.company,
+                    position: l.position, assetType: l.asset_type, merkModel: l.merk_model, imei: l.imei,
+                    checkIn: l.check_in, checkInRaw: l.check_in_raw, checkOut: l.check_out, duration: l.duration,
+                    scannedBy: l.scanned_by || '-'
+                }));
+            }
+            renderAllTables();
+            checkAndTriggerOverdueAlerts();
+        }
+
+        function listenRealtimeChanges() {
+            db.channel('custom-all-channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'master_data' }, () => fetchAllDataFromSupabase())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'log_activity' }, () => fetchAllDataFromSupabase())
+            .subscribe();
+        }
+
+        function focusScanner() {
+            setTimeout(() => {
+                let el = document.getElementById('scanInput');
+                if (el) el.focus();
+            }, 200);
+        }
+
+        function handleScan(event) {
+            if (event.key === 'Enter') {
+                let code = document.getElementById('scanInput').value.trim();
+                document.getElementById('scanInput').value = '';
+                if (!code) return;
+                processScanCode(code);
+            }
+        }
+
+        async function processScanCode(code) {
+            let now = new Date();
+            let timeString = now.toLocaleString('id-ID');
+            let currentOperator = sessionStorage.getItem('currentUser') || 'Unknown';
+
+            let user = masterData.find(item => item.imei === code);
+            let activeLog = logActivity.find(item => item.imei === code && item.checkOut === '-');
+
+            // CHECK OUT
+            if (activeLog) {
+                let checkInTime = new Date(activeLog.checkInRaw);
+                let durationMs = now - checkInTime;
+                let minutes = Math.floor(durationMs / 60000);
+                let hours = Math.floor(minutes / 60);
+                minutes = minutes % 60;
+                let durationStr = `${hours}j ${minutes}m`;
+
+                let { error } = await db.from('log_activity')
+                    .update({ 
+                        check_out: timeString, 
+                        duration: durationStr,
+                        scanned_by: currentOperator 
+                    })
+                    .eq('id_log', activeLog.id_log);
+
+                if (error) {
+                    showAlert(`❌ Gagal Check Out: ${error.message}`, 'danger');
+                    return;
+                }
+
+                showAlert(`🔴 CHECK OUT: ${activeLog.name} (${code}) by ${currentOperator}`, 'danger');
+                await fetchAllDataFromSupabase();
+                return;
+            } 
+
+            // UNKNOWN ASSET
+            if (!user) {
+                showAlert(`⚠️ ASET/IMEI UNKNOWN! Silakan daftarkan di form dulu. (${code})`, 'danger');
+                document.getElementById('gImei').value = code;
+                return;
+            }
+
+            // CHECK IN
+            let { error } = await db.from('log_activity').insert({
+                id: user.id,
+                type: user.type,
+                name: user.name,
+                company: user.company,
+                position: user.position,
+                asset_type: user.assetType || 'OTHER',
+                merk_model: user.merkModel,
+                imei: code,
+                check_in: timeString,
+                check_in_raw: now.toISOString(),
+                check_out: '-',
+                duration: '-',
+                scanned_by: currentOperator
+            });
+
+            if (error) {
+                showAlert(`❌ Gagal Check In: ${error.message}`, 'danger');
+                return;
+            }
+
+            showAlert(`🟢 CHECK IN: ${user.name} (${code}) by ${currentOperator}`, 'success');
+            await fetchAllDataFromSupabase();
+        }
+
+        async function saveGuestToMaster() {
+            let itemData = {
+                id: document.getElementById('gId').value.trim(),
+                type: document.getElementById('gType').value,
+                name: document.getElementById('gName').value.trim(),
+                company: document.getElementById('gCompany').value.trim(),
+                position: document.getElementById('gPosition').value.trim(),
+                asset_type: document.getElementById('gAssetType').value,
+                merk_model: document.getElementById('gMerkModel').value.trim(),
+                imei: document.getElementById('gImei').value.trim()
+            };
+
+            await db.from('master_data').upsert(itemData);
+        }
+
+        async function handleSaveGuest(e) {
+            e.preventDefault();
+            await saveGuestToMaster();
+            showAlert('✅ Master Data Berhasil Disimpan!', 'success');
+            document.getElementById('guestForm').reset();
+        }
+
+        async function handleSaveGuestAndCheckIn() {
+            let imei = document.getElementById('gImei').value.trim();
+            if (!imei) { alert('Tolong isi IMEI / SN!'); return; }
+            await saveGuestToMaster();
+            await processScanCode(imei);
+            document.getElementById('guestForm').reset();
+        }
+
+        function openEditModal(imei) {
+            // HANYA SUPER ADMIN OPS342 YANG BISA EDIT
+            let currentUser = sessionStorage.getItem('currentUser');
+            if (currentUser !== 'Ops342') {
+                alert('Akses Ditolak! Hanya Ops342 (Super Admin) yang dapat mengubah data master.');
+                return;
+            }
+
+            let item = masterData.find(x => x.imei === imei);
+            if (!item) return;
+
+            document.getElementById('editOriginalImei').value = item.imei;
+            document.getElementById('editId').value = item.id;
+            document.getElementById('editType').value = item.type || 'GUEST';
+            document.getElementById('editName').value = item.name;
+            document.getElementById('editCompany').value = item.company;
+            document.getElementById('editPosition').value = item.position;
+            document.getElementById('editAssetType').value = item.assetType || 'OTHER';
+            document.getElementById('editMerkModel').value = item.merkModel;
+            document.getElementById('editImei').value = item.imei;
+
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function handleSaveEditMaster(e) {
+            e.preventDefault();
+            let origImei = document.getElementById('editOriginalImei').value;
+            
+            let updatedData = {
+                id: document.getElementById('editId').value.trim(),
+                type: document.getElementById('editType').value,
+                name: document.getElementById('editName').value.trim(),
+                company: document.getElementById('editCompany').value.trim(),
+                position: document.getElementById('editPosition').value.trim(),
+                asset_type: document.getElementById('editAssetType').value,
+                merk_model: document.getElementById('editMerkModel').value.trim(),
+                imei: document.getElementById('editImei').value.trim()
+            };
+
+            if (origImei !== updatedData.imei) {
+                await db.from('master_data').delete().eq('imei', origImei);
+            }
+
+            await db.from('master_data').upsert(updatedData);
+            closeEditModal();
+            showAlert('✅ Edit Master Berhasil!', 'success');
+        }
+
+        async function deleteMaster(imei) {
+            let currentUser = sessionStorage.getItem('currentUser');
+            if (currentUser !== 'Ops342') {
+                alert('Akses Ditolak! Hanya Ops342 (Super Admin) yang dapat menghapus data master.');
+                return;
+            }
+
+            if (confirm('Yakin hapus data master ini?')) {
+                await db.from('master_data').delete().eq('imei', imei);
+                showAlert('🗑️ Master Data Terhapus', 'danger');
+            }
+        }
+
+        function calculateHoursDifference(checkInRaw) {
+            if (!checkInRaw) return 0;
+            let start = new Date(checkInRaw);
+            let now = new Date();
+            let durationMs = now - start;
+            return durationMs / (1000 * 60 * 60);
+        }
+
+        function calculateRunningDuration(checkInRaw) {
+            if (!checkInRaw) return '-';
+            let start = new Date(checkInRaw);
+            let now = new Date();
+            let durationMs = now - start;
+            let minutes = Math.floor(durationMs / 60000);
+            let hours = Math.floor(minutes / 60);
+            minutes = minutes % 60;
+            return `⏳ ${hours}j ${minutes}m`;
+        }
+
+        // FUNGSI CEK OTOMATIS ASET > 12 JAM & KIRIM EMAIL WARNING
+        function checkAndTriggerOverdueAlerts() {
+            let insideAssets = logActivity.filter(item => item.checkOut === '-');
+
+            insideAssets.forEach(item => {
+                let hoursPassed = calculateHoursDifference(item.checkInRaw);
+                
+                // JIKA DURASI >= 12 JAM DAN BELUM PERNAH DIKIRIMKAN EMAIL
+                if (hoursPassed >= 12 && !notifiedImeis.has(item.imei)) {
+                    notifiedImeis.add(item.imei);
+                    sendWarningEmail(item, calculateRunningDuration(item.checkInRaw));
+                }
+            });
+        }
+
+        function sendWarningEmail(asset, durationFormatted) {
+            let emailSubject = `⚠️ WARNING ASET OVERDUE (>12 JAM) - ${asset.name} (${asset.imei})`;
+            let emailMessage = `
+WARNING: TERDETEKSI ASET MELEBIHI DURASI 12 JAM DI DALAM GUDANG!
+
+Detail Log Aset:
+------------------------------------------
+ID / NIK         : ${asset.id}
+Kategori         : ${asset.type}
+Nama Personel    : ${asset.name}
+Perusahaan       : ${asset.company}
+Jabatan          : ${asset.position}
+Kategori Aset    : ${asset.assetType}
+Merk / Model     : ${asset.merkModel}
+IMEI / SN Barcode: ${asset.imei}
+Waktu Check-In   : ${asset.checkIn}
+Durasi Berjalan  : ${durationFormatted}
+Petugas Gate     : ${asset.scannedBy}
+------------------------------------------
+
+Harap segera ditindaklanjuti untuk pemeriksaan fisik aset tersebut di dalam area gudang.
+            `;
+
+            TARGET_EMAILS.forEach(emailAddr => {
+                emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                    to_email: emailAddr,
+                    subject: emailSubject,
+                    message: emailMessage
+                }).then(
+                    () => console.log(`✅ Email warning terkirim ke ${emailAddr}`),
+                    (err) => console.error(`❌ Gagal kirim email ke ${emailAddr}:`, err)
+                );
+            });
+        }
+
+        function renderDashboard() {
+            let dashContainer = document.getElementById('dashboardGrid');
+            dashContainer.innerHTML = '';
+
+            let insideAssets = logActivity.filter(item => item.checkOut === '-');
+
+            let currentUser = sessionStorage.getItem('currentUser');
+            if (currentUser === 'Ops342') {
+                let masterCard = document.createElement('div');
+                masterCard.className = 'dash-card total-master';
+                masterCard.innerHTML = `
+                    <div class="title">Total Asset Master</div>
+                    <div class="value">${masterData.length} <span style="font-size:12px; font-weight:normal; color:var(--text-muted);">Unit</span></div>
+                `;
+                dashContainer.appendChild(masterCard);
+            }
+
+            let totalCard = document.createElement('div');
+            totalCard.className = 'dash-card total-inside';
+            totalCard.innerHTML = `
+                <div class="title">Total Di Gudang</div>
+                <div class="value">${insideAssets.length} <span style="font-size:12px; font-weight:normal; color:var(--text-muted);">Unit</span></div>
+            `;
+            dashContainer.appendChild(totalCard);
+
+            let counts = {};
+            insideAssets.forEach(item => {
+                let type = (item.assetType || 'OTHER').toUpperCase();
+                counts[type] = (counts[type] || 0) + 1;
+            });
+
+            Object.keys(counts).forEach(type => {
+                let card = document.createElement('div');
+                card.className = 'dash-card';
+                card.innerHTML = `
+                    <div class="title">${type}</div>
+                    <div class="value">${counts[type]} <span style="font-size:12px; font-weight:normal; color:var(--text-muted);">Unit</span></div>
+                `;
+                dashContainer.appendChild(card);
+            });
+        }
+
+        function renderAllTables() {
+            renderDashboard();
+
+            let currentUser = sessionStorage.getItem('currentUser');
+
+            let logBody = document.getElementById('logBody');
+            logBody.innerHTML = '';
+            logActivity.forEach(item => {
+                let displayDuration = (item.checkOut === '-') ? calculateRunningDuration(item.checkInRaw) : item.duration;
+                let hoursPassed = (item.checkOut === '-') ? calculateHoursDifference(item.checkInRaw) : 0;
+                let isWarning = hoursPassed >= 12;
+
+                let tr = document.createElement('tr');
+                if (isWarning) tr.style.background = '#fef2f2';
+
+                tr.innerHTML = `
+                    <td><b>${item.id}</b></td>
+                    <td><span class="badge ${item.type === 'EMPLOYEE' ? 'badge-emp' : 'badge-gst'}">${item.type}</span></td>
+                    <td><b>${item.name}</b></td>
+                    <td>${item.company}</td>
+                    <td>${item.position}</td>
+                    <td><span class="badge badge-out">${item.assetType || 'OTHER'}</span></td>
+                    <td>${item.merkModel}</td>
+                    <td><b>${item.imei}</b></td>
+                    <td>${item.checkIn}</td>
+                    <td>${item.checkOut === '-' ? '<span class="badge badge-inside">Inside</span>' : item.checkOut}</td>
+                    <td><b>${displayDuration} ${isWarning ? '<span class="badge badge-warning">🚨 OVERDUE</span>' : ''}</b></td>
+                    <td><b>${item.scannedBy}</b></td>
+                `;
+                logBody.appendChild(tr);
+            });
+
+            let insideBody = document.getElementById('insideBody');
+            insideBody.innerHTML = '';
+            let insideAssets = logActivity.filter(item => item.checkOut === '-');
+            insideAssets.forEach(item => {
+                let hoursPassed = calculateHoursDifference(item.checkInRaw);
+                let isWarning = hoursPassed >= 12;
+
+                let tr = document.createElement('tr');
+                if (isWarning) tr.style.background = '#fef2f2';
+
+                tr.innerHTML = `
+                    <td><b>${item.id}</b></td>
+                    <td><span class="badge ${item.type === 'EMPLOYEE' ? 'badge-emp' : 'badge-gst'}">${item.type}</span></td>
+                    <td><b>${item.name}</b></td>
+                    <td>${item.company}</td>
+                    <td><span class="badge badge-out">${item.assetType || 'OTHER'}</span></td>
+                    <td>${item.merkModel}</td>
+                    <td><b>${item.imei}</b></td>
+                    <td>${item.checkIn}</td>
+                    <td><b>${calculateRunningDuration(item.checkInRaw)} ${isWarning ? '<span class="badge badge-warning">🚨 >12 Jam</span>' : ''}</b></td>
+                    <td><b>${item.scannedBy}</b></td>
+                `;
+                insideBody.appendChild(tr);
+            });
+
+            let masterBody = document.getElementById('masterBody');
+            masterBody.innerHTML = '';
+            masterData.forEach(item => {
+                let tr = document.createElement('tr');
+                let actionButtons = (currentUser === 'Ops342') ? `
+                    <button class="btn btn-outline btn-sm" onclick="openEditModal('${item.imei}')">✏️ Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteMaster('${item.imei}')">🗑️</button>
+                ` : `<span style="color:var(--text-muted); font-style:italic; font-size:11px;">Restricted</span>`;
+
+                tr.innerHTML = `
+                    <td><b>${item.id}</b></td>
+                    <td><span class="badge ${item.type === 'EMPLOYEE' ? 'badge-emp' : 'badge-gst'}">${item.type}</span></td>
+                    <td><b>${item.name}</b></td>
+                    <td>${item.company}</td>
+                    <td>${item.position}</td>
+                    <td><span class="badge badge-out">${item.assetType || 'OTHER'}</span></td>
+                    <td>${item.merkModel}</td>
+                    <td><b>${item.imei}</b></td>
+                    <td style="text-align:center;">${actionButtons}</td>
+                `;
+                masterBody.appendChild(tr);
+            });
+        }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).style.display = 'block';
+            btn.classList.add('active');
+        }
+
+        function showAlert(msg, type) {
+            let box = document.getElementById('alertBox');
+            box.className = `alert alert-${type}`;
+            box.innerText = msg;
+            box.style.display = 'block';
+            setTimeout(() => { box.style.display = 'none'; }, 4000);
+        }
+
+        async function importMasterCSV(defaultType) {
+            let fileInput = document.getElementById('csvEmployee');
+            let file = fileInput.files[0];
+            if (!file) return;
+
+            let reader = new FileReader();
+            reader.onload = async function(e) {
+                let text = e.target.result;
+                let lines = text.split(/\r\n|\n/);
+                if (lines.length < 2) { alert("File CSV kosong!"); return; }
+
+                let firstLine = lines[0];
+                let delimiter = ',';
+                if (firstLine.includes(';')) delimiter = ';';
+                else if (firstLine.includes('\t')) delimiter = '\t';
+
+                let uniqueMap = new Map();
+
+                for (let i = 1; i < lines.length; i++) {
+                    let line = lines[i].trim();
+                    if (!line) continue;
+                    let cols = line.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
+
+                    if (cols.length >= 7 && cols[6]) {
+                        let imei = cols[6];
+                        uniqueMap.set(imei, {
+                            id: cols[0] || 'EMP-' + Math.floor(Math.random() * 1000),
+                            name: cols[1] || 'No Name',
+                            company: cols[2] || 'SPX Express',
+                            position: cols[3] || 'Staff',
+                            asset_type: cols[4] || 'OTHER',
+                            merk_model: cols[5] || '-',
+                            imei: imei,
+                            type: defaultType
+                        });
+                    }
+                }
+
+                let batch = Array.from(uniqueMap.values());
+
+                if (batch.length > 0) {
+                    try {
+                        let { error } = await db.from('master_data').upsert(batch);
+                        if (error) {
+                            alert("Gagal upload: " + error.message);
+                        } else {
+                            showAlert(`✅ Berhasil mengimpor ${batch.length} data master!`, 'success');
+                            await fetchAllDataFromSupabase();
+                        }
+                    } catch (err) {
+                        alert("Terjadi kesalahan koneksi.");
+                    }
+                } else {
+                    alert("Data CSV tidak valid!");
+                }
+                fileInput.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function exportLogCSV() {
+            if (logActivity.length === 0) { alert('Data kosong!'); return; }
+            let csv = 'ID,Type,Nama,Perusahaan,Position,AssetType,MerkModel,IMEI_SN,CheckIn,CheckOut,Durasi,ScannedBy\n';
+            logActivity.forEach(row => {
+                csv += `"${row.id}","${row.type}","${row.name}","${row.company}","${row.position}","${row.assetType}","${row.merkModel}","${row.imei}","${row.checkIn}","${row.checkOut}","${row.duration}","${row.scannedBy}"\n`;
+            });
+            let blob = new Blob([csv], { type: 'text/csv' });
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = `Log_Gate_Control_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+    </script>
+</body>
+</html>
