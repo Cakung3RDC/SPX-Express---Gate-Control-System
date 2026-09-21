@@ -210,11 +210,20 @@
                     <div class="panel">
                         <div class="panel-header">📂 IMPORT / EXPORT DATA</div>
                         <div style="display:flex; flex-direction:column; gap:10px;">
+                            <button type="button" class="btn btn-outline" onclick="downloadMasterTemplateCSV()" style="width:100%;">
+                                📄 Download Template CSV Master
+                            </button>
+                            
+                            <hr style="border:0; border-top:1px solid var(--border); margin:2px 0;">
+
                             <div>
                                 <label style="font-size:11px; font-weight:bold; color:var(--text-muted);">Import Master Asset (CSV):</label>
                                 <input type="file" id="csvEmployee" accept=".csv" class="form-control" onchange="importMasterCSV('EMPLOYEE')">
                             </div>
-                            <button class="btn btn-success" onclick="exportLogCSV()" style="width:100%;">📥 Export Log CSV</button>
+                            
+                            <button class="btn btn-success" onclick="exportLogCSV()" style="width:100%;">
+                                📥 Export Log CSV
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -364,7 +373,7 @@
                     </div>
                 </div>
 
-                <!-- SETTINGS TAB (BARU) -->
+                <!-- SETTINGS TAB -->
                 <div id="settingsTab" class="tab-content" style="display:none;">
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <!-- PENGATURAN AMBANG BATAS OVERDUE -->
@@ -1001,6 +1010,22 @@ Harap segera ditindaklanjuti untuk pemeriksaan fisik aset tersebut di dalam area
             box.innerText = msg;
             box.style.display = 'block';
             setTimeout(() => { box.style.display = 'none'; }, 4000);
+        }
+
+        function downloadMasterTemplateCSV() {
+            let csvContent = "ID_NIK,Nama_Lengkap,Perusahaan,Jabatan,Kategori_Aset,Merk_Model,IMEI_SN\n";
+            csvContent += '"EMP-001","Budi Santoso","SPX Express","Courier","SMARTPHONE","Samsung A14","354829104829101"\n';
+            csvContent += '"GST-102","Rian Hidayat","Vendor External","IT Support","LAPTOP","ThinkPad L14","829104829101354"\n';
+
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'Template_Master_Asset_SPX.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
 
         async function importMasterCSV(defaultType) {
