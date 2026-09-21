@@ -486,13 +486,85 @@
         let overdueHoursLimit = 12;
 
         const VALID_USERS = {
-            'Ops342': '#Cakung3',
+            'Ops342': '@Cakung3',
             'security': '000000'
         };
 
         let masterData = [];
         let logActivity = [];
         let notifiedImeis = new Set();
+
+        // FUNGSI SUARA WEB AUDIO API
+        function playSound(type) {
+            try {
+                let AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                let ctx = new AudioContext();
+
+                if (type === 'success_in') {
+                    // Check-In (Beep-Beep Tinggi)
+                    let osc1 = ctx.createOscillator();
+                    let gain1 = ctx.createGain();
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(880, ctx.currentTime);
+                    gain1.gain.setValueAtTime(0.5, ctx.currentTime);
+                    osc1.connect(gain1);
+                    gain1.connect(ctx.destination);
+                    osc1.start();
+                    osc1.stop(ctx.currentTime + 0.1);
+
+                    setTimeout(() => {
+                        let osc2 = ctx.createOscillator();
+                        let gain2 = ctx.createGain();
+                        osc2.type = 'sine';
+                        osc2.frequency.setValueAtTime(1760, ctx.currentTime);
+                        gain2.gain.setValueAtTime(0.5, ctx.currentTime);
+                        osc2.connect(gain2);
+                        gain2.connect(ctx.destination);
+                        osc2.start();
+                        osc2.stop(ctx.currentTime + 0.15);
+                    }, 100);
+
+                } else if (type === 'success_out') {
+                    // Check-Out (Beep Tunggal)
+                    let osc = ctx.createOscillator();
+                    let gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.25);
+
+                } else if (type === 'error') {
+                    // ERROR / UNKNOWN / GAGAL ("DENGDOT" Heavy Bass)
+                    let oscDeng = ctx.createOscillator();
+                    let gainDeng = ctx.createGain();
+                    oscDeng.type = 'sawtooth';
+                    oscDeng.frequency.setValueAtTime(130, ctx.currentTime);
+                    gainDeng.gain.setValueAtTime(0.9, ctx.currentTime);
+                    oscDeng.connect(gainDeng);
+                    gainDeng.connect(ctx.destination);
+                    oscDeng.start();
+                    oscDeng.stop(ctx.currentTime + 0.2);
+
+                    setTimeout(() => {
+                        let oscDot = ctx.createOscillator();
+                        let gainDot = ctx.createGain();
+                        oscDot.type = 'sawtooth';
+                        oscDot.frequency.setValueAtTime(75, ctx.currentTime);
+                        gainDot.gain.setValueAtTime(1.0, ctx.currentTime);
+                        oscDot.connect(gainDot);
+                        gainDot.connect(ctx.destination);
+                        oscDot.start();
+                        oscDot.stop(ctx.currentTime + 0.35);
+                    }, 180);
+                }
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
 
         window.onload = function() {
             let activeUser = sessionStorage.getItem('currentUser');
@@ -576,7 +648,7 @@
             if (!val || val <= 0) return alert('Masukkan batas jam yang valid!');
             await db.from('system_settings').upsert({ key: 'overdue_hours', value: val });
             overdueHoursLimit = parseFloat(val);
-            showAlert('✅ Batas jam overdue berhasil diperbarui!', 'success');
+            showAlert('✅ Batas waktu overdue berhasil diperbarui!', 'success');
             renderAllTables();
         }
 
@@ -673,16 +745,19 @@
                     .eq('id_log', activeLog.id_log);
 
                 if (error) {
+                    playSound('error');
                     showAlert(`❌ Gagal Check Out: ${error.message}`, 'danger');
                     return;
                 }
 
+                playSound('success_out');
                 showAlert(`🔴 CHECK OUT: ${activeLog.name} (${code}) by ${currentOperator}`, 'danger');
                 await fetchAllDataFromSupabase();
                 return;
             } 
 
             if (!user) {
+                playSound('error');
                 showAlert(`⚠️ ASET/IMEI UNKNOWN! Silakan daftarkan di form dulu. (${code})`, 'danger');
                 document.getElementById('gImei').value = code;
                 return;
@@ -705,10 +780,12 @@
             });
 
             if (error) {
+                playSound('error');
                 showAlert(`❌ Gagal Check In: ${error.message}`, 'danger');
                 return;
             }
 
+            playSound('success_in');
             showAlert(`🟢 CHECK IN: ${user.name} (${code}) by ${currentOperator}`, 'success');
             await fetchAllDataFromSupabase();
         }
@@ -1072,15 +1149,19 @@ Harap segera ditindaklanjuti untuk pemeriksaan fisik aset tersebut di dalam area
                     try {
                         let { error } = await db.from('master_data').upsert(batch);
                         if (error) {
+                            playSound('error');
                             alert("Gagal upload: " + error.message);
                         } else {
+                            playSound('success_in');
                             showAlert(`✅ Berhasil mengimpor ${batch.length} data master!`, 'success');
                             await fetchAllDataFromSupabase();
                         }
                     } catch (err) {
+                        playSound('error');
                         alert("Terjadi kesalahan koneksi.");
                     }
                 } else {
+                    playSound('error');
                     alert("Data CSV tidak valid!");
                 }
                 fileInput.value = '';
